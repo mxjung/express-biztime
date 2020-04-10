@@ -10,7 +10,7 @@ router.get("/", async function(req, res, next) {
 
   try {
     const results = await db.query(
-      'SELECT * FROM companies;'
+      'SELECT * FROM companies'
     );
     return res.json({companies: results.rows});
   }
@@ -22,22 +22,53 @@ router.get("/", async function(req, res, next) {
 /* Return obj of company: {company: {code, name, description}}
 ** If the company given cannot be found, this should return a 404 status response. */
 
+// router.get("/:code", async function(req, res, next) {
+
+//   try {
+//     const code = req.params.code
+//     const results = await db.query(
+//       `SELECT * FROM companies
+//        WHERE code = $1`,
+//        [code]
+//     );
+
+//     if (results.rows.length === 0) {
+//       throw new ExpressError(`Invalid Company Code: ${code}`, 404);
+//     }
+//     return res.json({company: results.rows[0]});
+//   }
+//   catch(err) {
+//     return next(err);
+//   }
+// });
+
 router.get("/:code", async function(req, res, next) {
 
   try {
-    const code = req.params.code
+    const code_company = req.params.code
     const results = await db.query(
-      `SELECT * FROM companies
-       WHERE code = $1`,
-       [code]
+      `SELECT 
+        companies.code, 
+        companies.name, 
+        companies.description,
+        industries.industry
+       FROM companies
+       LEFT JOIN companies_industries
+        ON companies.code = companies_industries.company_code
+       LEFT JOIN industries
+        ON industries.code = companies_industries.industry_code
+       WHERE companies.code = $1`,
+       [code_company]
     );
 
     if (results.rows.length === 0) {
-      let notFoundError = new Error(`Invalid Company Code: ${code}`)
-      notFoundError.status = 404;
-      throw notFoundError;
+      throw new ExpressError(`Invalid Company Code: ${code_company}`, 404);
     }
-    return res.json({company: results.rows[0]});
+
+    let {code, name, description} = results.rows[0];
+    let industries = results.rows.map(r => r.industry);
+
+    return res.json({company: { code, name, description, industries } });
   }
   catch(err) {
     return next(err);
